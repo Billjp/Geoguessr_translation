@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "GeoGuessr Enhancer JP",
+  "version": "1.0.0",
+  "description": "GeoGuessrの音声・方位磁針を置き換え、チャットを翻訳する拡張機能",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.geoguessr.com/*", "https://api.mymemory.translated.net/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.geoguessr.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js", "assets/*"],
+      "matches": ["https://www.geoguessr.com/*"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  }
+}

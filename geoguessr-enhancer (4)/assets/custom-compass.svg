@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="96" viewBox="0 0 24 96">
+  <!-- 北(上)：赤 -->
+  <polygon points="12,2 20,48 12,40 4,48" fill="#e53e3e"/>
+  <!-- 南(下)：白 -->
+  <polygon points="12,94 20,48 12,56 4,48" fill="#f0f0f0"/>
+  <!-- 中心円 -->
+  <circle cx="12" cy="48" r="4" fill="#1a1a2e" stroke="#888" stroke-width="1"/>
+</svg>
