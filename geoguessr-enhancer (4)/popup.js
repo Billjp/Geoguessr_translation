@@ -1,31 +1,33 @@
 /**
  * popup.js
- * ポップアップの設定UIロジック
+ * ポップアップの設定UIロジック (API連携版)
  */
 (async function () {
   'use strict';
 
-  // ---- 要素取得 ----
   const $ = (id) => document.getElementById(id);
 
-  const soundEnabled   = $('soundEnabled');
-  const soundContent   = $('soundContent');
-  const soundPickBtn   = $('soundPickBtn');
-  const soundFile      = $('soundFile');
-  const soundFileName  = $('soundFileName');
-  const soundReset     = $('soundReset');
+  const soundEnabled   = $('soundEnabled'); const soundContent   = $('soundContent');
+  const soundPickBtn   = $('soundPickBtn'); const soundFile      = $('soundFile');
+  const soundFileName  = $('soundFileName'); const soundReset     = $('soundReset');
 
-  const compassEnabled = $('compassEnabled');
-  const compassContent = $('compassContent');
-  const compassPickBtn = $('compassPickBtn');
-  const compassFile    = $('compassFile');
-  const compassFileName= $('compassFileName');
-  const compassReset   = $('compassReset');
+  const compassEnabled = $('compassEnabled'); const compassContent = $('compassContent');
+  const compassPickBtn = $('compassPickBtn'); const compassFile    = $('compassFile');
+  const compassFileName= $('compassFileName'); const compassReset   = $('compassReset');
 
-  const translateEnabled= $('translateEnabled');
-  const translateContent= $('translateContent');
-  const translateSource = $('translateSource');
-  const translateTarget = $('translateTarget');
+  const translateEnabled= $('translateEnabled'); const translateContent= $('translateContent');
+  const translateSource = $('translateSource'); const translateTarget = $('translateTarget');
+  
+  // 新規追加: 翻訳エンジン設定
+  const translateEngine = $('translateEngine');
+  const apiSettingsWrap = $('apiSettingsWrap');
+  const geminiSettings  = $('geminiSettings');
+  const openaiSettings  = $('openaiSettings');
+  const lmstudioSettings= $('lmstudioSettings');
+  
+  const geminiApiKey = $('geminiApiKey');
+  const openaiApiKey = $('openaiApiKey');
+  const lmStudioUrl  = $('lmStudioUrl');
 
   const statusText = $('statusText');
   const saveToast  = $('saveToast');
@@ -35,6 +37,7 @@
     'soundEnabled', 'customSoundUrl', 'customSoundName',
     'compassEnabled', 'customCompassUrl', 'customCompassName',
     'translateEnabled', 'translateSource', 'translateTarget',
+    'translateEngine', 'geminiApiKey', 'openaiApiKey', 'lmStudioUrl'
   ]);
 
   soundEnabled.checked    = stored.soundEnabled    !== false;
@@ -52,41 +55,45 @@
 
   translateSource.value = stored.translateSource || 'auto';
   translateTarget.value = stored.translateTarget || 'ja';
+  translateEngine.value = stored.translateEngine || 'mymemory';
+  
+  geminiApiKey.value = stored.geminiApiKey || '';
+  openaiApiKey.value = stored.openaiApiKey || '';
+  lmStudioUrl.value = stored.lmStudioUrl || 'http://localhost:1234';
 
   updateDisabled();
+  updateEngineUI();
 
-  // ---- 保存通知 ----
   function showToast() {
     saveToast.classList.add('show');
     setTimeout(() => saveToast.classList.remove('show'), 1800);
   }
 
-  // ---- セクション無効化 ----
   function updateDisabled() {
     soundContent.classList.toggle('disabled', !soundEnabled.checked);
     compassContent.classList.toggle('disabled', !compassEnabled.checked);
     translateContent.classList.toggle('disabled', !translateEnabled.checked);
   }
 
-  // ---- 設定を保存して content.js に通知 ----
+  function updateEngineUI() {
+    const engine = translateEngine.value;
+    apiSettingsWrap.style.display = engine === 'mymemory' ? 'none' : 'block';
+    geminiSettings.classList.toggle('active', engine === 'gemini');
+    openaiSettings.classList.toggle('active', engine === 'openai');
+    lmstudioSettings.classList.toggle('active', engine === 'lmstudio');
+  }
+
   async function saveSettings(updates) {
     await chrome.storage.local.set(updates);
-
-    // アクティブなGeoGuessrタブにメッセージ送信
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab?.url?.includes('geoguessr.com')) {
-        chrome.tabs.sendMessage(tab.id, {
-          type: 'SETTINGS_UPDATED',
-          settings: updates,
-        }).catch(() => {}); // タブがまだ読み込まれていなくてもエラーにしない
+        chrome.tabs.sendMessage(tab.id, { type: 'SETTINGS_UPDATED', settings: updates }).catch(() => {});
       }
     } catch (_) {}
-
     showToast();
   }
 
-  // ---- ファイルをBase64 DataURLに変換 ----
   function fileToDataURL(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -97,77 +104,51 @@
   }
 
   // ---- トグルイベント ----
-  soundEnabled.addEventListener('change', () => {
-    updateDisabled();
-    saveSettings({ soundEnabled: soundEnabled.checked });
-  });
+  soundEnabled.addEventListener('change', () => { updateDisabled(); saveSettings({ soundEnabled: soundEnabled.checked }); });
+  compassEnabled.addEventListener('change', () => { updateDisabled(); saveSettings({ compassEnabled: compassEnabled.checked }); });
+  translateEnabled.addEventListener('change', () => { updateDisabled(); saveSettings({ translateEnabled: translateEnabled.checked }); });
 
-  compassEnabled.addEventListener('change', () => {
-    updateDisabled();
-    saveSettings({ compassEnabled: compassEnabled.checked });
-  });
-
-  translateEnabled.addEventListener('change', () => {
-    updateDisabled();
-    saveSettings({ translateEnabled: translateEnabled.checked });
-  });
-
-  // ---- 音声ファイル選択 ----
+  // ---- 音声・画像ファイルイベント ----
   soundPickBtn.addEventListener('click', () => soundFile.click());
-
   soundFile.addEventListener('change', async () => {
-    const file = soundFile.files[0];
-    if (!file) return;
-
+    const file = soundFile.files[0]; if (!file) return;
     const dataUrl = await fileToDataURL(file);
-    soundFileName.textContent = file.name;
-    soundFileName.classList.add('set');
-
-    await saveSettings({
-      customSoundUrl: dataUrl,
-      customSoundName: file.name,
-    });
+    soundFileName.textContent = file.name; soundFileName.classList.add('set');
+    await saveSettings({ customSoundUrl: dataUrl, customSoundName: file.name });
   });
-
   soundReset.addEventListener('click', async () => {
-    soundFileName.textContent = 'デフォルト音声を使用';
-    soundFileName.classList.remove('set');
-    soundFile.value = '';
+    soundFileName.textContent = 'デフォルト音声を使用'; soundFileName.classList.remove('set'); soundFile.value = '';
     await saveSettings({ customSoundUrl: null, customSoundName: null });
   });
 
-  // ---- 方位磁針画像選択 ----
   compassPickBtn.addEventListener('click', () => compassFile.click());
-
   compassFile.addEventListener('change', async () => {
-    const file = compassFile.files[0];
-    if (!file) return;
-
+    const file = compassFile.files[0]; if (!file) return;
     const dataUrl = await fileToDataURL(file);
-    compassFileName.textContent = file.name;
-    compassFileName.classList.add('set');
-
-    await saveSettings({
-      customCompassUrl: dataUrl,
-      customCompassName: file.name,
-    });
+    compassFileName.textContent = file.name; compassFileName.classList.add('set');
+    await saveSettings({ customCompassUrl: dataUrl, customCompassName: file.name });
   });
-
   compassReset.addEventListener('click', async () => {
-    compassFileName.textContent = 'デフォルト画像を使用';
-    compassFileName.classList.remove('set');
-    compassFile.value = '';
+    compassFileName.textContent = 'デフォルト画像を使用'; compassFileName.classList.remove('set'); compassFile.value = '';
     await saveSettings({ customCompassUrl: null, customCompassName: null });
   });
 
-  // ---- 翻訳設定 ----
-  translateSource.addEventListener('change', () => {
-    saveSettings({ translateSource: translateSource.value });
+  // ---- 翻訳API・言語イベント ----
+  translateSource.addEventListener('change', () => saveSettings({ translateSource: translateSource.value }));
+  translateTarget.addEventListener('change', () => saveSettings({ translateTarget: translateTarget.value }));
+  translateEngine.addEventListener('change', () => {
+    updateEngineUI();
+    saveSettings({ translateEngine: translateEngine.value });
   });
 
-  translateTarget.addEventListener('change', () => {
-    saveSettings({ translateTarget: translateTarget.value });
-  });
+  const saveApiInputs = (e) => {
+    const updates = {};
+    updates[e.target.id] = e.target.value.trim();
+    saveSettings(updates);
+  };
+  geminiApiKey.addEventListener('change', saveApiInputs);
+  openaiApiKey.addEventListener('change', saveApiInputs);
+  lmStudioUrl.addEventListener('change', saveApiInputs);
 
   // ---- ステータス確認 ----
   try {

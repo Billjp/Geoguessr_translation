@@ -1,10 +1,17 @@
 {
   "manifest_version": 3,
   "name": "GeoGuessr Enhancer JP",
-  "version": "1.0.0",
-  "description": "GeoGuessrの音声・方位磁針を置き換え、チャットを翻訳する拡張機能",
+  "version": "2.0.0",
+  "description": "GeoGuessrの音声・方位磁針を置き換え、チャットを高度なAIで翻訳する拡張機能",
   "permissions": ["storage"],
-  "host_permissions": ["https://www.geoguessr.com/*", "https://api.mymemory.translated.net/*"],
+  "host_permissions": [
+    "https://www.geoguessr.com/*", 
+    "https://api.mymemory.translated.net/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.openai.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
